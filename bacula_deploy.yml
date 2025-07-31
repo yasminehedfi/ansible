@@ -1,0 +1,13 @@
+- name: Install Bacula Director and Bacularis
+  hosts: bacula_director
+  become: yes
+  tasks:
+    - include_tasks: install_director.yml
+    - include_tasks: install_bacularis.yml
+
+- name: Install Bacula File Daemon (Client)
+  hosts: bacula_clients
+  become: yes
+  tasks:
+    - include_tasks: install_client.yml
+

@@ -1,0 +1,11 @@
+- name: Install Bacula Director
+  apt:
+    name: bacula-director
+    state: present
+    update_cache: yes
+
+- name: Enable and start bacula-director
+  systemd:
+    name: bacula-director
+    enabled: yes
+    state: started
