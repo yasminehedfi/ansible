@@ -1,4 +1,4 @@
 [bacula_director]
-192.168.64.6
+localhost ansible_connection=local
 [bacula_client]
 192.168.64.9 ansible_user=linux3
