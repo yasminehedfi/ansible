@@ -1,11 +1,21 @@
-- name: Install Bacula Director
-  apt:
-    name: bacula-director
-    state: present
-    update_cache: yes
+- name: Install Bacula Director & Storage
+  hosts: directors
+  become: yes
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - bacula-director-mysql
+          - bacula-sd
+          - bacula-console
+        update_cache: yes
+        state: present
 
-- name: Enable and start bacula-director
-  systemd:
-    name: bacula-director
-    enabled: yes
-    state: started
+    - name: Enable services
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      loop:
+        - bacula-director
+        - bacula-sd

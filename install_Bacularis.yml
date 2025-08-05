@@ -1,34 +1,87 @@
-- name: Install dependencies
-  apt:
-    name:
-      - apache2
-      - php
-      - php-curl
-      - php-xml
-      - php-sqlite3
-    state: present
-    update_cache: yes
+- name: Install Bacularis web UI
+  hosts: directors
+  become: yes
+  vars:
+    php_version: "8.3"
+    bacularis_dir: /opt/bacularis-app
 
-- name: Download Bacularis
-  get_url:
-    url: https://github.com/wolfvision/bacularis/releases/latest/download/bacularis-web-latest.tar.gz
-    dest: /tmp/bacularis.tar.gz
+  tasks:
 
-- name: Extract Bacularis
-  unarchive:
-    src: /tmp/bacularis.tar.gz
-    dest: /var/www/html/
-    remote_src: yes
+    - name: Install PHP and required modules
+      apt:
+        name:
+          - apache2
+          - php{{ php_version }}
+          - php{{ php_version }}-bcmath
+          - php{{ php_version }}-curl
+          - php{{ php_version }}-dom
+          - php{{ php_version }}-ldap
+          - php{{ php_version }}-mysql
+          - php{{ php_version }}-pgsql
+          - php{{ php_version }}-pdo
+          - php{{ php_version }}-intl
+          - php{{ php_version }}-mbstring
+          - php{{ php_version }}-xml
+          - php{{ php_version }}-zip
+          - unzip
+          - curl
+          - git
+        state: present
+        update_cache: yes
 
-- name: Set permissions
-  file:
-    path: /var/www/html/bacularis
-    owner: www-data
-    group: www-data
-    recurse: yes
+    - name: Install Composer if not present
+      shell: |
+        curl -s http://getcomposer.org/installer | php
+        mv composer.phar /usr/local/bin/composer
+      args:
+        creates: /usr/local/bin/composer
+    - name: Remove existing Bacularis directory if present
+      file:
+        path: "{{ bacularis_dir }}"
+        state: absent
 
-- name: Restart Apache
-  systemd:
-    name: apache2
-    state: restarted
+    - name: Install Bacularis via Composer
+      shell: composer create-project --no-interaction --prefer-dist bacularis/bacularis-app {{ bacularis_dir }}
+      args:
+        chdir: /opt
+        creates: "{{ bacularis_dir }}/protected/config/main.php"
+      register: composer_output
+      ignore_errors: no
+      timeout: 300
 
+    - name: Show Composer output
+      debug:
+        var: composer_output
+
+    - name: Run Bacularis install.sh script 
+      shell: yes "" |  bash protected/tools/install.sh
+      args:
+        chdir: "{{ bacularis_dir }}"
+      register: install_script_output
+      ignore_errors: no
+
+    - name: Show install.sh output
+      debug:
+       var: install_script_output.stdout_lines
+ 
+    - name: Move Bacularis Apache config to sites-available
+      become: yes
+      copy:
+        src: /opt/bacularis-app/bacularis-apache.conf
+        dest: /etc/apache2/sites-available/bacularis-apache.conf
+        remote_src: yes
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Enable Bacularis Apache site
+      become: yes
+      command: a2ensite bacularis-apache.conf
+      args:
+        creates: /etc/apache2/sites-enabled/bacularis-apache.conf
+
+    - name: Reload Apache service
+      become: yes
+      systemd:
+        name: apache2
+        state: reloaded

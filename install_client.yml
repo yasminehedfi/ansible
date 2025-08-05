@@ -1,11 +1,15 @@
 - name: Install Bacula File Daemon
-  apt:
-    name: bacula-client
-    state: present
-    update_cache: yes
+  hosts: clients
+  become: yes
+  tasks:
+    - name: Install bacula-fd
+      apt:
+        name: bacula-fd
+        update_cache: yes
+        state: present
 
-- name: Enable and start bacula-fd
-  systemd:
-    name: bacula-fd
-    enabled: yes
-    state: started
+    - name: Enable bacula-fd
+      systemd:
+        name: bacula-fd
+        enabled: yes
+        state: started
